@@ -1,0 +1,63 @@
+roslaunch minitask5 turtlebot3_minitask5.launch
+
+roslaunch turtlebot3_navigation turtlebot3_navigation.launch map_file:=`rospack find minitask5`/maps/train_env.yaml
+
+
+from nav_msgs.msg import OccupancyGrid
+
+
+#For blue tile obastcle
+        self.grid = OccupancyGrid()
+        #self.grid.header.frame_id = map_frame
+        self.obstacle_pub = rospy.Publisher("/set_blue_tile", OccupancyGrid, queue_size = 10)
+
+def is_robot_close_to_blue_object(self, red_objects, image, depth_image, pose):
+        """
+        Check if the robot is close to a green object based on some criteria.
+        Adjust the criteria based on your robot's behavior and environment.
+        """
+        for object_x, object_y in red_objects:
+            depth = depth_image[object_x, object_y]
+            if not (isnan(depth)):
+                if (depth < CLOSE_DISTANCE_THRESHOLD):
+                    rospy.loginfo('Found the blue tile')
+                    #Adjusts the angle of object x based on the camera fov
+                    theta = euler_from_quaternion([pose.transform.rotation.x,pose.transform.rotation.y, pose.transform.rotation.z, pose.transform.rotation.w])[2]
+                    theta -= radians(-34.5 + ((object_x * 69)/self.depth_image.shape[1]))
+                    b_object_pose = (pose.transform.translation.x + (depth*cos(theta)), pose.transform.translation.y + (depth*sin(theta)))
+                    b_object_x = pose.transform.translation.x + (depth*cos(theta))
+                    b_object_y = pose.transform.translation.y + (depth*sin(theta))
+                    
+                    radius = 1 
+                    for x in range(b_object_x-radius, b_object_x+radius):
+                        for y in range(b_object_y-radius, b_object_y+radius): 
+                            index = self.get_index(x, y, self.grid)
+                            if index > 0:
+                                self.grid.data[index] = 100
+                    
+                    
+                    self.obstacle_pub.publish(self.grid)
+                    # object_unique = True
+                    
+                    
+                    # for marker in self.marker_array.markers:
+                    #     marker_pose = marker.pose.position
+                    #     if (marker_pose.x - r_object_pose[0])**2 + (marker_pose.y - r_object_pose[1])**2 < (1.425 **2):
+                    #         object_unique = False
+                    # if object_unique:
+                    #     self.marker_array.markers.append(self.convert_marker(r_object_pose,sx=0.6,sy=0.6,sz=0.6))
+                    #     rospy.loginfo(r_object_pose)
+
+    def get_index(self, x, y, grid):
+        # 确定grid坐标系原点 在 地图坐标系中的位置
+        origin_x = grid.info.origin.position.x
+        origin_y = grid.info.origin.position.y
+        
+        # 计算grid坐标
+        grid_x = int((x - origin_x) / grid.info.resolution)
+        grid_y = int((y - origin_y) / grid.info.resolution)
+
+        # 计算索引
+        index = grid_y * grid.info.width + grid_x
+
+        return index
